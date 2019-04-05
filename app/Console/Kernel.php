@@ -15,7 +15,8 @@ class Kernel extends ConsoleKernel
     protected $commands = [
         //
         Commands\MultithreadingRequest::class,
-        Commands\CityCrawler::class
+        Commands\CityCrawler::class,
+        Commands\NovelCrawler::class
     ];
 
     /**
