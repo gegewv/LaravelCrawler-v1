@@ -16,9 +16,9 @@ class NovelCrawler extends Command
     protected $signature = 'novel:crawler';
     protected $description = '小说爬取';
 
-    protected $novel_name = '绝地求生之最强主播';
     protected $novel_online = 'http://www.5hzw.com';
-    protected $novel_url = 'http://www.5hzw.com/17_17857/';
+    protected $novel_name = '落地一把98K';     // 绝地求生之最强主播
+    protected $novel_url = 'http://www.5hzw.com/4_4787/';      // http://www.5hzw.com/17_17857/
     protected $novel;
 
     public function __construct()
@@ -37,12 +37,11 @@ class NovelCrawler extends Command
 
             // 如果没有爬取计划， 则结束爬取
             if (empty($task_model)) {
-                return $this->info("End");
+                return $this->info("Crawler End");
             }
 
-//            $this->crawling_content($task_model);
-//            $this->info($task_model->title);
-            $this->info("Crawler End");
+            // 爬取文章内容
+            $this->crawling_content($task_model);
         }
     }
 
@@ -57,16 +56,14 @@ class NovelCrawler extends Command
         $crawler->filter('#list')->filter('dl > dd > a')->each(function (Crawler $node, $i) use ($url) {
             $text = $this->stringInterception($node->text());
             $href = $this->novel_online . $node->attr('href');
-//            $content = $this->crawling_content($href);
 
-            Article::create([
+            $article = [
                 'novel_id' => $this->novel->id,
                 'title' => $text,
                 'url' => $href,
                 'content' => ''
-            ]);
-
-//            $this->info($text);
+            ];
+            $this->article($article);
         });
     }
 
@@ -77,12 +74,12 @@ class NovelCrawler extends Command
 
         $crawler = new Crawler();
         $crawler->addHtmlContent($html, 'gb18030');
-        $content = $crawler->filter('#content');
+        $content = $crawler->filter('#content')->text();
 
         $task->content = $content;
         $task->status = 2;
         $task->save();
-        $this->info($content);
+        $this->info($task->title);
     }
 
     // 发送http请求
@@ -126,9 +123,23 @@ class NovelCrawler extends Command
     private function task($status = 0)
     {
         $task = Article::where("status", $status)->first();
-        $task->status = 1;  // 进行中
-        $task->save();
+        if ($task) {
+            $task->status = 1;  // 进行中
+            $task->save();
+        }
         return $task;
+    }
+
+    // 爬取文章
+    private function article($data)
+    {
+        $hasArticle = Article::where([
+            ['novel_id', $data['novel_id']],
+            ['title', $data['title']]
+        ])->first();
+        if (!$hasArticle) {
+            Article::create($data);
+        }
     }
 
     // 查询此小说是否加入
@@ -148,6 +159,7 @@ class NovelCrawler extends Command
         $this->crawling_article();
     }
 
+    // 去除小说标题中的  "（*********）"
     function stringInterception($str)
     {
         $array = explode('（', $str);
